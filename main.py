@@ -1,8 +1,8 @@
-#import
+# import
 import pygame
 import sys 
 import random 
-from src.settings import SCREEN_HEIGHT,SCREEN_WIDTH,FPS,TITLE,GRAVITY, WHITE, GRAY
+from src.settings import FPS, TITLE, WHITE, GRAY
 from src.player import Player
 from src.obstacle import Cactus
 
@@ -26,11 +26,10 @@ def main():
     SPAWN_OBSTACLE = pygame.USEREVENT + 1
     pygame.time.set_timer(SPAWN_OBSTACLE, 1500)
 
-    # DEKLARASI VARIABEL KONTROL GAME (HARUS DI SINI / SEBELUM WHILE)
-   
+    # DEKLARASI VARIABEL KONTROL GAME
     running = True
     game_over = False
-    is_fullscreen = False  # <--- PASTIKAN BARIS INI ADA DI SINI
+    is_fullscreen = False
 
     # 4. Game Loop Utama
     while running:
@@ -38,10 +37,10 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            # Penanganan Toggle Fullscreen
+            # Penanganan Toggle Fullscreen & Resize
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
-                    is_fullscreen = not is_fullscreen  # Sekarang aman dipanggil!
+                    is_fullscreen = not is_fullscreen
                     if is_fullscreen:
                         screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
                     else:
@@ -63,22 +62,31 @@ def main():
         curr_w, curr_h = screen.get_size()
 
         if not game_over:
-            player_group.update()
+            # Lewatkan tinggi layar ke update player agar posisi tanah pas
+            player_group.update(curr_h)
             obstacle_group.update()
 
-            if pygame.sprite.spritecollide(player, obstacle_group, False):
+            # DETEKSI TABRAKAN HITBOX vs HITBOX
+            # Jika player belum punya atribut hitbox, fallback ke p.rect
+            if pygame.sprite.spritecollide(
+                player, 
+                obstacle_group, 
+                False, 
+                collided=lambda p, o: (getattr(p, 'hitbox', p.rect)).colliderect(getattr(o, 'hitbox', o.rect))
+            ):
                 game_over = True
                 player.is_dead = True
-                player.update()
 
         screen.fill(WHITE)
 
+        # Gambar garis tanah
         ground_y = int(curr_h * 0.7)
         pygame.draw.line(screen, GRAY, (0, ground_y), (curr_w, ground_y), 2)
 
         player_group.draw(screen)
         obstacle_group.draw(screen)
 
+        # Tampilan Game Over
         if game_over:
             font = pygame.font.SysFont("arial", 30, bold=True)
             teks = font.render("Game Over - Press Space to Restart", True, GRAY)
@@ -91,9 +99,4 @@ def main():
     sys.exit()
 
 if __name__ == "__main__":
-    main()
-
-
-
-
-
+    main()   
