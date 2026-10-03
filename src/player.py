@@ -1,13 +1,13 @@
 import os 
 import pygame 
-from src.settings import IMG_DIR, DINO_START_X, DINO_START_Y, GRAVITY, JUMP_FORCE
+from src.settings import IMG_DIR, DINO_START_X, GRAVITY, JUMP_FORCE
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        # Helper function untuk memuat gambar transparan (PNG tanpa background)
+        # Helper function untuk memuat gambar transparan (PNG)
         def load_sprite(filename):
             path = os.path.join(IMG_DIR, filename)
             return pygame.image.load(path).convert_alpha()
@@ -18,14 +18,20 @@ class Player(pygame.sprite.Sprite):
         self.jump_frame = load_sprite("Dino.png")
         self.dead_frame = load_sprite("Dino-game-over.png")
 
-        # 2. Masukkan frame lari ke dalam list animasi
+        # 2. Frame animasi
         self.run_frames = [self.run_frame1, self.run_frame2]
         self.frame_index = 0
-        self.anim_speed = 0.15  # Kecepatan ganti animasi kaki
+        self.anim_speed = 0.15
 
-        # Gambar awal dan hitbox
+        # Gambar awal dan rect
         self.image = self.run_frames[0]
-        self.rect = self.image.get_rect(bottomleft=(DINO_START_X, DINO_START_Y))
+        
+        # Posisi awal (Default tinggi 600, tanah di 70% -> 420)
+        default_ground_y = int(600 * 0.7)
+        self.rect = self.image.get_rect(bottomleft=(DINO_START_X, default_ground_y))
+        
+        # Hitbox (dikurangi sedikit dari rect agar tabrakan pas)
+        self.hitbox = self.rect.inflate(-10, -10)
 
         # Status fisika
         self.vel_y = 0
@@ -33,44 +39,46 @@ class Player(pygame.sprite.Sprite):
         self.is_dead = False
 
     def jump(self):
-        # Mekanik lompat
         if not self.is_jumping and not self.is_dead:
             self.vel_y = JUMP_FORCE
             self.is_jumping = True
 
     def animate(self):
-        # Simpan posisi bagian bawah kaki sebelum mengganti gambar
         bottom_left = self.rect.bottomleft
 
-        # Memutar animasi berdasarkan keadaan dino
         if self.is_dead:
             self.image = self.dead_frame
         elif self.is_jumping:
             self.image = self.jump_frame
         else:
-            # Berganti animasi lari (Dino-run.png <-> Dino-run-1.png)
             self.frame_index += self.anim_speed 
             if self.frame_index >= len(self.run_frames):
                 self.frame_index = 0
             self.image = self.run_frames[int(self.frame_index)]
 
-        # Sesuaikan kembali rect agar posisi lantai (bottom) tidak bergeser saat ukuran sprite beda
         self.rect = self.image.get_rect(bottomleft=bottom_left)
 
-    def apply_gravity(self):
-        # Hitungan gravitasi 
+    # TAMBAHKAN parameter screen_height dengan default 600
+    def apply_gravity(self, screen_height=600):
+        # Tentukan posisi tanah dinamis (70% dari tinggi layar saat ini)
+        ground_y = int(screen_height * 0.7)
+
         self.vel_y += GRAVITY
         self.rect.y += self.vel_y
 
-        # Batas lantai
-        if self.rect.bottom >= DINO_START_Y:
-            self.rect.bottom = DINO_START_Y
+        # Batas lantai dinamis
+        if self.rect.bottom >= ground_y:
+            self.rect.bottom = ground_y
             self.vel_y = 0
             self.is_jumping = False
 
-    def update(self):
-        self.apply_gravity()
+    # UBAH di sini: Tambahkan screen_height=600 agar menerima argumen dari main.py
+    def update(self, screen_height=600):
+        self.apply_gravity(screen_height)
         self.animate()
+        
+        # Pastikan posisi hitbox selalu mengikuti rect utama
+        self.hitbox.center = self.rect.center
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)
